@@ -1,7 +1,7 @@
 ---
 title       : shiny! qPCR
 subtitle    : compute Real-Time in real time 
-author      : Diana Low [Making things happen (a.k.a. Postdoc)]
+author      : Diana Low
 job         : June 2014
 framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
 highlighter : highlight.js  # {highlight.js, prettify, highlight}
