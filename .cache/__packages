@@ -1,0 +1,12 @@
+base
+BiocGenerics
+Biostrings
+bitops
+ggplot2
+IRanges
+RCurl
+reshape
+shiny
+shinyapps
+slidify
+XVector

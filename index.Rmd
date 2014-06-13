@@ -1,0 +1,128 @@
+---
+title       : shiny! qPCR
+subtitle    : compute Real-Time in real time 
+author      : Diana Low
+job         : June 2014
+framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : [mathjax]            # {mathjax, quiz, bootstrap}
+mode        : selfcontained # {standalone, draft}
+knit        : slidify::knit2slides
+output      : fullscreen
+---   
+
+## What is quantitative PCR?
+
+Quantative PCR is a method to determine the amount of particular gene in a sample. 
+The Ct value, or threshold cycle, is a relative measure of the concentration of target in the PCR reaction.
+
+# A typical qPCR analysis.....
+
+1. Get data from machine
+2. Pre-process (formatting)
+3. Perform calculations in Excel spreadsheet (!!!) or some specialized software
+4. Make some graphs
+
+Some biologists might say...... <h3 class="red2">"it's tedious! difficult! there's math involved!"</h3>
+
+---
+
+## Enter shiny! qPCR 
+https://dlow.shinyapps.io/qpcr/
+
+<img style="border:1px solid black" src="https://raw.githubusercontent.com/dianalow/dianalow.github.io/master/images/qpcr_snapshot.png" width=800>
+
+--- .class #id 
+## Under the hood
+shiny! qPCR takes in a table of Ct values & computes means and standard deviations
+```{r,echo=FALSE}
+dataset<-data.frame(cond1_1=c(21,26,14,19,16.6,21),cond1_2=c(20.8,25.4,14,18.6,16.5,21.5),
+               cond1_3=c(20.5,26,14.5,19,16,21.5),cond2_1=c(21.5,20,12,25,17,24),
+               cond2_2=c(22,20.3,11.8,25.1,17,24.5),cond2_3=c(22,20.5,12,25,16.5,24),
+               row.names=c('gene1','gene2','gene3','gene4','gene5','gene6'))
+```
+```{r}
+dataset # your upload file will contain this
+# compute mean and stdev
+group<-rep(1:2,each=3)
+dvals<-do.call(cbind,by(t(dataset),group,function(x) colMeans(x)))
+dst<-do.call(cbind,by(t(dataset),group,function(x) apply(x,2,sd)))
+```
+
+--- &twocol
+*** =left
+```{r}
+dvals # means
+dst # standard deviations
+```
+
+*** =right
+## Plot
+```{r,echo=FALSE}
+calcSE<-function(ss){
+  newss<-ss
+  for(i in 1:nrow(ss)){
+    for(j in 1:ncol(ss)){
+      newss[i,j]<-sqrt(ss[1,j]^2 + ss[i,j]^2)
+      }
+    }
+  return(newss)
+  }
+norm2gene<-function(values,se){
+  ref<-values[1,]
+  dv<-values
+  for(i in 1:ncol(dv)) dv[,i]<-dv[,i]-ref[i]
+  
+  dse<-calcSE(se)
+  return(list(dv,dse))
+  }
+vals<-norm2gene(dvals,dst)
+ddct<-vals[[1]]
+se<-vals[[2]]
+ylabel<-"log2ratio"
+cholder<-colnames(ddct)
+rholder<-rownames(ddct)
+normcond=normgene=lg2=TRUE
+
+if(normgene==FALSE){
+  rholder<-rholder[2:length(rholder)]
+  ddct<-data.frame(ddct[2:nrow(ddct),])
+  se<-data.frame(se[2:nrow(se),])
+  }
+if(normcond==FALSE){
+  cholder<-cholder[2:length(cholder)]
+  ddct<-data.frame(ddct[,2:ncol(ddct)])
+  se<-data.frame(se[,2:ncol(se)])
+  }
+if(lg2==FALSE){
+  #no se bars for fold change plots
+  holder<-colnames(ddct)
+  maxddct<-2^-(ddct+se)
+  minddct<-2^-(ddct-se)
+  ddct<-(maxddct+minddct)/2
+  se<-maxddct-ddct
+  ylabel<-input$ylabel
+  } else {
+    ddct<-(-ddct)
+    ylabel<-"log2(Ratio)"
+    }
+colnames(ddct)<-colnames(se)<-cholder
+rownames(ddct)<-rownames(se)<-rholder
+mct<-melt(as.matrix(ddct))
+mse<-melt(as.matrix(se))
+final<-cbind(mct,mse[,3])
+colnames(final)<-c("Gene","Sample","log2ratio","SE")
+final$Sample<-as.factor(final$Sample)
+a<-ggplot(final,aes(x=Gene,y=log2ratio,fill=Sample))+ylab(ylabel)+geom_bar(position=position_dodge(),stat = "identity")+ theme_classic(base_size=18)+scale_fill_grey()+geom_hline(yintercept=0)
+print(a)
+```
+
+---
+## References
+* http://www.lifetechnologies.com/sg/en/home/life-science/pcr/real-time-pcr/qpcr-education/pcr-understanding-ct-application-note.html
+* http://www3.appliedbiosystems.com/cms/groups/mcb_support/documents/generaldocuments/cms_042380.pdf
+
+## Thank you for your attention!
+* dlow@imcb.a-star.edu.sg
+* https://dlow.shinyapps.io/qpcr/
